@@ -9,6 +9,9 @@ class Boulder:
         # The x value for the boulder is set to randomly choose between a set range
         self.x = random.randrange(0, pyxel.width - 16)
 
+        # Flag to register a collision with the player
+        self.collision = False
+
         # The y value for the boulder
         self.y = 0
 
@@ -40,7 +43,9 @@ class Boulder:
     # Checks whether the boulder collides with the player
     def player_collision(self, x: int, y: int, player_x: int, player_y: int) -> bool:
         # Calculate the distance from the centre of the boulder and player using Pythagorean theorem
-        distance_from_centre = math.sqrt(pow((x - player_x), 2) + pow((y - player_y), 2))
+        distance_from_centre = math.sqrt(
+            pow((x - player_x), 2) + pow((y - player_y), 2)
+        )
 
         # Check if the distance from the centre of the boulder is within at least half the player width
         if distance_from_centre < 16:
@@ -53,6 +58,12 @@ class Player:
     def __init__(self, x: int, y: int) -> None:
         # The x value for the player
         self.x = x
+
+        # The default number of lives
+        self.lives = 3
+
+        # Flag to render player invulnerable to the boudler when true
+        self.invulnerable = False
 
         # The y value for the player
         self.y = y
@@ -78,7 +89,7 @@ class Player:
                 self.x -= 2
         else:
             self.direction = "neutral"
-    
+
     # Ensures player stays within the game boundaries
     def valid_position(self, x: int) -> bool:
         return 0 < x < pyxel.width - 15
@@ -107,7 +118,7 @@ class BoulderBilk:
         pyxel.run(self.update, self.draw)
 
     # Initial setup for the game
-    def setup(self) -> None:    
+    def setup(self) -> None:
         self.game_state = "running"
         self.score = 0
         self.boulder = Boulder()
@@ -141,7 +152,26 @@ class BoulderBilk:
                 player_x=self.player.x,
                 player_y=self.player.y,
             ):
+
+                # SFX for collision
                 pyxel.play(ch=1, snd=1)
+
+                # If the collision flag is false and the player is not invulnerable
+                # take one life and make the player invulnerable during the rest
+                # of the collision
+                if not self.boulder.collision and not self.player.invulnerable:
+                    self.boulder.collision = True
+                    self.player.invulnerable = True
+                    self.player.lives -= 1
+
+            # If the boulder is not colliding set player invlunerability and
+            # boulder collision flags to false
+            else:
+                self.player.invulnerable = False
+                self.boulder.collision = False
+
+            # Game over if player lives reach 0
+            if self.player.lives == 0:
                 self.game_state = "stopped"
 
             # If the boulder goes past the bottom of the screen, spawn another one
@@ -163,7 +193,11 @@ class BoulderBilk:
     def draw(self) -> None:
         pyxel.cls(pyxel.COLOR_WHITE)
         self.display_info()
-        self.player.draw()
+        if self.player.invulnerable:
+            if pyxel.frame_count % 10 == 0:
+                self.player.draw()
+        else:
+            self.player.draw()
         self.boulder.draw()
 
     # Displays the score, pause and gameover text
@@ -172,14 +206,27 @@ class BoulderBilk:
             x=pyxel.width * 0.025, y=10, s=f"SCORE: {self.score}", col=pyxel.COLOR_BLACK
         )
 
+        pyxel.text(
+            x=pyxel.width * 0.80,
+            y=10,
+            s=f"LIVES: {self.player.lives}",
+            col=pyxel.COLOR_BLACK,
+        )
+
         if self.game_state == "paused":
             pyxel.text(
-                x=pyxel.width * 0.5 - 10, y=pyxel.height * 0.5, s="PAUSED", col=pyxel.COLOR_BLACK
+                x=pyxel.width * 0.5 - 10,
+                y=pyxel.height * 0.5,
+                s="PAUSED",
+                col=pyxel.COLOR_BLACK,
             )
 
         elif self.game_state == "stopped":
             pyxel.text(
-                x=pyxel.width * 0.5 - 20, y=pyxel.height * 0.5, s="GAME OVER!", col=pyxel.COLOR_BLACK
+                x=pyxel.width * 0.5 - 20,
+                y=pyxel.height * 0.5,
+                s="GAME OVER!",
+                col=pyxel.COLOR_BLACK,
             )
 
 
@@ -187,6 +234,5 @@ if __name__ == "__main__":
     BoulderBilk()
 
 
-# TODO: Add lives so the user can survive longer
 # TODO: Increase the difficulty by adding more falling boulders
 # TODO: Add power ups, power downs and bonus items to add complexity
