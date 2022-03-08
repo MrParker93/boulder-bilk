@@ -2,7 +2,7 @@ Boulder Bilk
 ====
 Avoid the falling boulders for as long as possible!
 
-![alt text](ENTER GIF "Boulder Bilk Gif")
+![alt text](https://github.com/MrParker93/boulder-bilk/blob/main/demo/boulderbilk.gif "Boulder Bilk Gif")
 
 How to install
 ---
