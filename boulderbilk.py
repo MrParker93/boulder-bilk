@@ -2,6 +2,9 @@ import math
 import pyxel  # Please refer to the following link for the documentation: https://github.com/kitao/pyxel
 import random
 
+BOULDERS = 1
+MAX_NUMBER_OF_BOULDERS = 10
+
 
 # Handles the falling boulder
 class Boulder:
@@ -30,22 +33,20 @@ class Boulder:
             x=self.x, y=self.y, img=1, u=16, v=16, w=16, h=16, colkey=pyxel.COLOR_WHITE
         )
 
+    # Makes the boulder fall at the current fall speed
+    def drop(self) -> None:
+        self.y += self.fall_speed
+
     # Loads a boulder to screen at the given x and y values
     def spawn(self, x: int, y: int) -> None:
         pyxel.play(ch=0, snd=0)
         self.x = x
         self.y = y
 
-    # Makes the boulder fall at the current fall speed
-    def drop(self) -> None:
-        self.y += self.fall_speed
-
     # Checks whether the boulder collides with the player
     def player_collision(self, x: int, y: int, player_x: int, player_y: int) -> bool:
         # Calculate the distance from the centre of the boulder and player using Pythagorean theorem
-        distance_from_centre = math.sqrt(
-            pow((x - player_x), 2) + pow((y - player_y), 2)
-        )
+        distance_from_centre = math.hypot(x - player_x, y - player_y)
 
         # Check if the distance from the centre of the boulder is within at least half the player width
         if distance_from_centre < 16:
@@ -121,7 +122,15 @@ class BoulderBilk:
     def setup(self) -> None:
         self.game_state = "running"
         self.score = 0
-        self.boulder = Boulder()
+
+        # Stores the maximum number of boulders
+        self.boulders = []
+        for _ in range(MAX_NUMBER_OF_BOULDERS):
+            new_boulder = Boulder()
+            self.boulders.append(new_boulder)
+
+        # The current number of boulders to include
+        self.current_boulders = BOULDERS
         self.player = Player(x=pyxel.width * 0.5, y=pyxel.height - 16)
 
     # Handles game logic. Checks every frame for changes.
@@ -143,51 +152,61 @@ class BoulderBilk:
 
         # Checks for game updates if the game is running
         if self.game_state == "running":
+
+
             self.player.move(key_left=pyxel.KEY_A, key_right=pyxel.KEY_D)
-
-            # If the boulder collides with the player game over
-            if self.boulder.player_collision(
-                x=self.boulder.x,
-                y=self.boulder.y,
-                player_x=self.player.x,
-                player_y=self.player.y,
-            ):
-
-                # SFX for collision
-                pyxel.play(ch=1, snd=1)
-
-                # If the collision flag is false and the player is not invulnerable
-                # take one life and make the player invulnerable during the rest
-                # of the collision
-                if not self.boulder.collision and not self.player.invulnerable:
-                    self.boulder.collision = True
-                    self.player.invulnerable = True
-                    self.player.lives -= 1
-
-            # If the boulder is not colliding set player invlunerability and
-            # boulder collision flags to false
-            else:
-                self.player.invulnerable = False
-                self.boulder.collision = False
 
             # Game over if player lives reach 0
             if self.player.lives == 0:
                 self.game_state = "stopped"
+            
+            # If the boulder collides with the player game over
+            for boulder in self.boulders[:self.current_boulders]:
 
-            # If the boulder goes past the bottom of the screen, spawn another one
-            if self.boulder.y > pyxel.height:
-                self.score += 1
-                self.boulder.spawn(
-                    x=random.randrange(0, pyxel.width - 16),
-                    y=0,
-                )
+                # Drops the boulder
+                boulder.drop()
 
-                # Update the speed of the boulder after 5 points. Max speed is 5.
-                if self.boulder.fall_speed < 5 and self.score % 5 == 0:
-                    self.boulder.fall_speed *= 1.1
+                if boulder.player_collision(
+                    x=boulder.x,
+                    y=boulder.y,
+                    player_x=self.player.x,
+                    player_y=self.player.y,
+                ):
 
-            # Drops the boulder
-            self.boulder.drop()
+                    # SFX for collision
+                    pyxel.play(ch=1, snd=1)
+
+                    # If the collision flag is false and the player is not invulnerable
+                    # take one life and make the player invulnerable during the rest
+                    # of the collision
+                    if not boulder.collision and not self.player.invulnerable:
+                        boulder.collision = True
+                        self.player.invulnerable = True
+                        self.player.lives -= 1
+
+                # If the boulder is not colliding set player invlunerability and
+                # boulder collision flags to false
+                else:
+                    self.player.invulnerable = False
+                    boulder.collision = False
+
+                # If any boulder goes past the bottom of the screen, spawn another one
+                if boulder.y > pyxel.height:
+                    self.score += 1
+
+                    # Spawn the boulders at random x positions
+                    x=random.randrange(0, pyxel.width - 16)
+
+                    # Spawn the boulders at random y positions so they fall at different times
+                    y= random.randrange(0 - int(pyxel.height * 0.25), 0)
+                    boulder.spawn(x=x, y=y)
+
+                    # Update the speed of the boulder after 5 points. Max speed is 5.
+                    # Add another boulder to increase difficulty
+                    if boulder.fall_speed < 5 and self.score % 5 == 0:
+                        boulder.fall_speed *= 1.1
+                        self.current_boulders += 1
+                
 
     # Draws the game to the screen
     def draw(self) -> None:
@@ -198,7 +217,11 @@ class BoulderBilk:
                 self.player.draw()
         else:
             self.player.draw()
-        self.boulder.draw()
+        
+        # Iterate over all the boulders in the list and draw up to the
+        # current number of boulders included (starts at 1)
+        for boulder in self.boulders[:self.current_boulders]:
+            boulder.draw()
 
     # Displays the score, pause and gameover text
     def display_info(self) -> None:
@@ -234,5 +257,4 @@ if __name__ == "__main__":
     BoulderBilk()
 
 
-# TODO: Increase the difficulty by adding more falling boulders
 # TODO: Add power ups, power downs and bonus items to add complexity
